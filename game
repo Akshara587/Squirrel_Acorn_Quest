@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Squirrel Forest Adventure</title>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+  background: black;
+}
+
+#gameContainer {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.background {
+  position: absolute;
+  width: 200%;
+  height: 100%;
+  background-image: url('https://images.unsplash.com/photo-1448375240586-882707db888b');
+  background-size: cover;
+  background-repeat: repeat-x;
+  animation: scrollBackground 20s linear infinite;
+}
+
+@keyframes scrollBackground {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+#ground {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 140px;
+  background: #4b2e14;
+}
+
+#player {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  bottom: 140px;
+  left: 100px;
+  background-image: url('https://cdn-icons-png.flaticon.com/512/616/616430.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  transform: scaleX(-1);
+  animation: run 0.4s infinite;
+}
+
+@keyframes run {
+  0% {
+    transform: scaleX(-1) translateY(0px);
+  }
+  50% {
+    transform: scaleX(-1) translateY(-8px);
+  }
+  100% {
+    transform: scaleX(-1) translateY(0px);
+  }
+}
+
+.collectible,
+.obstacle {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  bottom: 150px;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+#hud {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: white;
+  z-index: 10;
+  font-size: 28px;
+  background: rgba(0,0,0,0.5);
+  padding: 15px;
+  border-radius: 12px;
+}
+
+#gameOverScreen {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  color: white;
+  z-index: 20;
+}
+
+#gameOverScreen h1 {
+  font-size: 70px;
+  margin-bottom: 20px;
+}
+
+button {
+  padding: 15px 30px;
+  border: none;
+  border-radius: 12px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+</style>
+</head>
+<body>
+
+<div id="gameContainer">
+
+  <div class="background"></div>
+
+  <div id="hud">
+    🌰 Score: <span id="score">0</span>
+    <br>
+    ❤️ Lives: <span id="lives">3</span>
+  </div>
+
+  <div id="player"></div>
+
+  <div id="ground"></div>
+
+  <div id="gameOverScreen">
+    <h1>GAME OVER</h1>
+    <button onclick="restartGame()">Restart</button>
+  </div>
+
+</div>
+
+<script>
+
+const player = document.getElementById('player');
+const scoreText = document.getElementById('score');
+const livesText = document.getElementById('lives');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const gameContainer = document.getElementById('gameContainer');
+
+let score = 0;
+let lives = 3;
+let playerX = 100;
+let playerY = 140;
+let velocityY = 0;
+let gravity = 1;
+let jumping = false;
+let gameOver = false;
+
+class GameObject {
+  constructor(type) {
+    this.element = document.createElement('div');
+
+    if(type === 'collectible') {
+      this.element.classList.add('collectible');
+
+      const items = [
+        'https://cdn-icons-png.flaticon.com/512/415/415733.png',
+        'https://cdn-icons-png.flaticon.com/512/2909/2909768.png',
+        'https://cdn-icons-png.flaticon.com/512/590/590685.png'
+      ];
+
+      this.element.style.backgroundImage = `url(${items[Math.floor(Math.random()*items.length)]})`;
+
+    } else {
+
+      this.element.classList.add('obstacle');
+
+      const enemies = [
+        'https://cdn-icons-png.flaticon.com/512/3069/3069172.png',
+        'https://cdn-icons-png.flaticon.com/512/616/616554.png',
+        'https://cdn-icons-png.flaticon.com/512/185/185820.png'
+      ];
+
+      this.element.style.backgroundImage = `url(${enemies[Math.floor(Math.random()*enemies.length)]})`;
+    }
+
+    this.type = type;
+    this.x = window.innerWidth;
+    this.speed = 7;
+
+    this.element.style.left = this.x + 'px';
+
+    gameContainer.appendChild(this.element);
+  }
+
+  move() {
+    this.x -= this.speed;
+    this.element.style.left = this.x + 'px';
+
+    if(this.x < -100) {
+      this.element.remove();
+      return false;
+    }
+
+    return true;
+  }
+}
+
+const objects = [];
+
+function spawnObjects() {
+  if(gameOver) return;
+
+  const type = Math.random() > 0.5 ? 'collectible' : 'obstacle';
+
+  const obj = new GameObject(type);
+  objects.push(obj);
+}
+
+setInterval(spawnObjects, 1800);
+
+function update() {
+
+  if(gameOver) return;
+
+  velocityY += gravity;
+  playerY -= velocityY;
+
+  if(playerY <= 140) {
+    playerY = 140;
+    jumping = false;
+    velocityY = 0;
+  }
+
+  player.style.bottom = playerY + 'px';
+  player.style.left = playerX + 'px';
+
+  const playerRect = player.getBoundingClientRect();
+
+  for(let i = objects.length - 1; i >= 0; i--) {
+
+    const obj = objects[i];
+
+    if(!obj.move()) {
+      objects.splice(i,1);
+      continue;
+    }
+
+    const objRect = obj.element.getBoundingClientRect();
+
+    const collision = (
+      playerRect.left + 20 < objRect.right &&
+      playerRect.right - 20 > objRect.left &&
+      playerRect.top + 20 < objRect.bottom &&
+      playerRect.bottom - 20 > objRect.top
+    );
+
+    // When the squirrel jumps high enough, it should safely avoid obstacles
+    const safelyJumpedOver = playerY > 230 && obj.type === 'obstacle';
+
+    if(collision && !safelyJumpedOver) {
+
+      if(obj.type === 'collectible') {
+        score += 10;
+        scoreText.innerText = score;
+      }
+      else {
+        lives--;
+        livesText.innerText = lives;
+
+        if(lives <= 0) {
+          endGame();
+        }
+      }
+
+      obj.element.remove();
+      objects.splice(i,1);
+    }
+  }
+
+  requestAnimationFrame(update);
+}
+
+update();
+
+function jump() {
+  if(jumping) return;
+
+  jumping = true;
+  velocityY = -20;
+}
+
+window.addEventListener('keydown', (e) => {
+
+  if(e.code === 'Space') {
+    jump();
+  }
+
+  if(e.code === 'ArrowRight') {
+    playerX += 25;
+
+    if(playerX > window.innerWidth - 150) {
+      playerX = window.innerWidth - 150;
+    }
+  }
+
+  if(e.code === 'ArrowLeft') {
+    playerX -= 25;
+
+    if(playerX < 0) {
+      playerX = 0;
+    }
+  }
+});
+
+function endGame() {
+  gameOver = true;
+  gameOverScreen.style.display = 'flex';
+}
+
+function restartGame() {
+  location.reload();
+}
+
+alert(
+  '🐿️ Welcome to Squirrel Forest Adventure!\n\n' +
+  'Collect nuts and fruits while escaping predators and poisonous forest dangers.\n\n' +
+  'Controls:\n' +
+  '⬅️ Left Arrow = Move Left\n' +
+  '➡️ Right Arrow = Move Right\n' +
+  'SPACEBAR = Jump'
+);
+
+</script>
+
+</body>
+</html>
